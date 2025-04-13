@@ -28,12 +28,12 @@ export async function POST(request) {
       );
     }
 
-    try {
-      // Initialize Supabase client
-      const supabase = createRouteHandlerClient({ cookies });
-      console.log('Supabase client initialized');
+    // Initialize Supabase client with await
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-      // Validate API key - only select id since user_id doesn't exist
+    try {
+      // Validate API key
       const { data: apiKeyData, error: apiKeyError } = await supabase
         .from('api_keys')
         .select('id')
