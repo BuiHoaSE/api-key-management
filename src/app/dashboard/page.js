@@ -27,16 +27,26 @@ export default function Dashboard() {
   const fetchApiKeys = async () => {
     try {
       const response = await fetch('/api/keys');
+      if (!response.ok) {
+        throw new Error('Failed to fetch API keys');
+      }
       const data = await response.json();
-      setApiKeys(data);
+      
+      // Ensure data is an array
+      const keysArray = Array.isArray(data) ? data : [];
+      setApiKeys(keysArray);
+      
       // Initialize visibility state for new keys
       const initialVisibility = {};
-      data.forEach(key => {
+      keysArray.forEach(key => {
         initialVisibility[key.id] = false; // Initially hide all keys
       });
       setVisibleKeys(initialVisibility);
     } catch (error) {
       console.error('Error fetching API keys:', error);
+      setApiKeys([]); // Set empty array on error
+      setVisibleKeys({}); // Reset visibility state
+      showToast('Failed to fetch API keys', 'error');
     }
   };
 
