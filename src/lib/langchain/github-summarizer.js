@@ -40,47 +40,101 @@ function cleanText(text) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links but keep text
     .replace(/<[^>]+>/g, '') // Remove HTML tags
     .replace(/`([^`]+)`/g, '$1') // Remove code backticks but keep content
+    .replace(/#{1,6}\s/g, '') // Remove markdown headers
     .replace(/\s+/g, ' ') // Normalize whitespace
     .trim();
 }
 
-// Function to generate a summary from README content
+// Function to extract the project title
+function extractTitle(content) {
+  // Try to find the first header
+  const headerMatch = content.match(/^#\s+(.+)$/m);
+  if (headerMatch) {
+    return cleanText(headerMatch[1]);
+  }
+
+  // If no header, try to find the first non-empty line
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const cleaned = cleanText(line);
+    if (cleaned && !cleaned.startsWith('---')) {
+      return cleaned;
+    }
+  }
+
+  return "Untitled Project";
+}
+
+// Function to generate summary from README content
 function generateSummary(content) {
-  // Remove HTML comments and special sections
-  content = content.replace(/<!--[\s\S]*?-->/g, '');
+  // Remove code blocks
+  content = content.replace(/```[\s\S]*?```/g, '');
   
   // Split into paragraphs
   const paragraphs = content.split('\n\n');
+  
+  // Find the first meaningful paragraph after the title
   let summary = '';
-
-  // Find the first meaningful paragraph
+  let foundTitle = false;
+  
   for (const para of paragraphs) {
     const cleanPara = cleanText(para);
-    if (cleanPara && 
-        !cleanPara.startsWith('#') && 
-        !cleanPara.startsWith('---') && 
-        cleanPara.length > 50) {
+    
+    // Skip empty paragraphs and common sections to avoid
+    if (!cleanPara || 
+        cleanPara.toLowerCase().includes('table of contents') ||
+        cleanPara.toLowerCase().includes('installation') ||
+        /^[=-]+$/.test(cleanPara)) {
+      continue;
+    }
+
+    // If this is the title paragraph, mark it and continue
+    if (!foundTitle && cleanPara === extractTitle(content)) {
+      foundTitle = true;
+      continue;
+    }
+
+    // If we've found a substantial paragraph after the title
+    if (foundTitle && cleanPara.length > 50) {
+      summary = cleanPara;
+      break;
+    }
+
+    // If we haven't found the title yet but found a good paragraph
+    if (!foundTitle && cleanPara.length > 50) {
       summary = cleanPara;
       break;
     }
   }
 
-  return summary || "No summary available.";
+  // If no good paragraph found, try to combine meaningful sentences
+  if (!summary) {
+    const sentences = content.split(/[.!?]+/)
+      .map(s => cleanText(s))
+      .filter(s => s.length > 30 && !s.toLowerCase().includes('installation'));
+    
+    summary = sentences.slice(0, 2).join('. ') + '.';
+  }
+
+  return summary;
 }
 
 // Function to extract cool facts from README
 function extractCoolFacts(content) {
   // Remove HTML comments and special sections
   content = content.replace(/<!--[\s\S]*?-->/g, '');
+  content = content.replace(/```[\s\S]*?```/g, ''); // Remove code blocks
   
-  const coolFacts = [];
+  const coolFacts = new Set();
 
-  // Extract bullet points
+  // Extract bullet points that look like features
   const bulletMatches = content.match(/[-*]\s+([^\n]+)/g) || [];
   for (const bullet of bulletMatches) {
     const cleanBullet = cleanText(bullet);
-    if (cleanBullet.length > 30 && cleanBullet.length < 200) {
-      coolFacts.push(cleanBullet);
+    if (cleanBullet.length > 30 && 
+        cleanBullet.length < 200 && 
+        /feature|support|provide|enable|allow|include|offer|built|create|manage|integrate|customize|automate/i.test(cleanBullet)) {
+      coolFacts.add(cleanBullet);
     }
   }
 
@@ -95,15 +149,22 @@ function extractCoolFacts(content) {
         const cleanSentence = sentence.trim();
         if (cleanSentence.length > 30 && 
             cleanSentence.length < 200 && 
-            /feature|support|provide|enable|allow|include|offer/i.test(cleanSentence)) {
-          coolFacts.push(cleanSentence + '.');
+            /feature|support|provide|enable|allow|include|offer|built|create|manage|integrate|customize|automate/i.test(cleanSentence)) {
+          coolFacts.add(cleanSentence + '.');
         }
       }
     }
   }
 
-  // Return unique facts
-  return [...new Set(coolFacts)].slice(0, 3);
+  // Convert Set to Array and get the most interesting facts
+  return Array.from(coolFacts)
+    .sort((a, b) => {
+      // Prioritize sentences with more feature-related keywords
+      const aKeywords = a.match(/feature|support|provide|enable|allow|include|offer|built|create|manage|integrate|customize|automate/gi) || [];
+      const bKeywords = b.match(/feature|support|provide|enable|allow|include|offer|built|create|manage|integrate|customize|automate/gi) || [];
+      return bKeywords.length - aKeywords.length;
+    })
+    .slice(0, 3);
 }
 
 // Main function to process GitHub repository
@@ -129,4 +190,4 @@ export async function processGitHubRepository(repositoryUrl) {
       error: error.message
     };
   }
-} 
+}
