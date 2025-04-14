@@ -35,8 +35,6 @@ const handler = NextAuth({
             console.error('Error checking for existing user:', queryError);
           }
 
-          console.log('Existing user check result:', existingUser);
-
           if (!existingUser) {
             console.log('Creating new user record');
             const newUser = {
@@ -47,7 +45,6 @@ const handler = NextAuth({
               provider_id: user.id,
               created_at: new Date().toISOString(),
             };
-            console.log('New user data:', newUser);
 
             const { data, error } = await supabase
               .from('users')
@@ -64,7 +61,6 @@ const handler = NextAuth({
           return true;
         } catch (error) {
           console.error('Error in signIn callback:', error);
-          // Still allow sign in even if Supabase save fails
           return true;
         }
       }
@@ -75,9 +71,12 @@ const handler = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith(baseUrl)) return url;
-      if (url.startsWith('/')) return new URL(url, baseUrl).toString();
-      return baseUrl;
+      // Always redirect to the callback URL if it's provided and is a relative URL or matches the base URL
+      if (url.startsWith('/') || url.startsWith(baseUrl)) {
+        return url;
+      }
+      // Default to dashboard
+      return '/dashboard';
     },
   },
 });

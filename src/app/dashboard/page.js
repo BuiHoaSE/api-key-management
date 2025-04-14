@@ -26,7 +26,9 @@ export default function Dashboard() {
     if (status === 'loading') return;
     
     if (status === 'unauthenticated') {
-      router.replace('/auth/signin?callbackUrl=/dashboard');
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const encodedCallback = encodeURIComponent(currentUrl);
+      router.replace(`/auth/signin?callbackUrl=${encodedCallback}`);
       return;
     }
 
@@ -39,28 +41,32 @@ export default function Dashboard() {
     try {
       const response = await fetch('/api/keys', {
         headers: {
-          'Authorization': `Bearer ${session?.user?.id}` // Add auth header
+          'Authorization': `Bearer ${session?.user?.id}`
         }
       });
+      
+      if (response.status === 401) {
+        router.replace('/auth/signin');
+        return;
+      }
+      
       if (!response.ok) {
         throw new Error('Failed to fetch API keys');
       }
-      const data = await response.json();
       
-      // Ensure data is an array
+      const data = await response.json();
       const keysArray = Array.isArray(data) ? data : [];
       setApiKeys(keysArray);
       
-      // Initialize visibility state for new keys
       const initialVisibility = {};
       keysArray.forEach(key => {
-        initialVisibility[key.id] = false; // Initially hide all keys
+        initialVisibility[key.id] = false;
       });
       setVisibleKeys(initialVisibility);
     } catch (error) {
       console.error('Error fetching API keys:', error);
-      setApiKeys([]); // Set empty array on error
-      setVisibleKeys({}); // Reset visibility state
+      setApiKeys([]);
+      setVisibleKeys({});
       showToast('Failed to fetch API keys', 'error');
     }
   };
