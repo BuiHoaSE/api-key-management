@@ -24,7 +24,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin?callbackUrl=/dashboard');
+      router.replace('/auth/signin?callbackUrl=/dashboard');
+      return;
+    }
+    if (status === 'authenticated') {
+      fetchApiKeys();
     }
   }, [status, router]);
 
