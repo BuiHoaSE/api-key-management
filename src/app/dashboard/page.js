@@ -23,22 +23,25 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
+    if (status === 'loading') return;
+    
     if (status === 'unauthenticated') {
       router.replace('/auth/signin?callbackUrl=/dashboard');
       return;
     }
-    if (status === 'authenticated') {
+
+    if (status === 'authenticated' && session) {
       fetchApiKeys();
     }
-  }, [status, router]);
-
-  useEffect(() => {
-    fetchApiKeys();
-  }, []);
+  }, [status, session, router]);
 
   const fetchApiKeys = async () => {
     try {
-      const response = await fetch('/api/keys');
+      const response = await fetch('/api/keys', {
+        headers: {
+          'Authorization': `Bearer ${session?.user?.id}` // Add auth header
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch API keys');
       }
