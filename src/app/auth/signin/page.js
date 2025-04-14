@@ -7,9 +7,18 @@ import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Separate component that uses useSearchParams
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session && callbackUrl) {
+      router.push(callbackUrl);
+    }
+  }, [session, router, callbackUrl]);
 
   return (
     <div className="mx-auto w-full max-w-sm space-y-6">
@@ -24,27 +33,23 @@ function SignInContent() {
   );
 }
 
+// Loading component
+function LoadingState() {
+  return (
+    <div className="mx-auto w-full max-w-sm space-y-6 text-center">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold">Loading...</h1>
+        <p className="text-gray-500">Please wait</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page component
 export default function SignIn() {
-  const { data: session } = useSession();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl');
-
-  useEffect(() => {
-    if (session && callbackUrl) {
-      router.push(callbackUrl);
-    }
-  }, [session, router, callbackUrl]);
-
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <Suspense fallback={
-        <div className="mx-auto w-full max-w-sm space-y-6 text-center">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Loading...</h1>
-          </div>
-        </div>
-      }>
+      <Suspense fallback={<LoadingState />}>
         <SignInContent />
       </Suspense>
     </div>

@@ -4,8 +4,10 @@ import { signIn, signOut, useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function GoogleSignInButton() {
+// Component that uses useSearchParams
+function GoogleSignInButtonContent() {
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
@@ -68,5 +70,18 @@ export default function GoogleSignInButton() {
       )}
       {isLoading ? 'Signing in...' : 'Sign in with Google'}
     </button>
+  );
+}
+
+// Main component with Suspense
+export default function GoogleSignInButton() {
+  return (
+    <Suspense fallback={
+      <button disabled className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto disabled:opacity-50">
+        Loading...
+      </button>
+    }>
+      <GoogleSignInButtonContent />
+    </Suspense>
   );
 } 
