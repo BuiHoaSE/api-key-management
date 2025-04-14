@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PlusIcon, TrashIcon, EyeIcon, EyeSlashIcon, ClipboardDocumentIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
@@ -22,22 +22,7 @@ export default function Dashboard() {
     expiresIn: 30 // Default 30 days
   });
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (status === 'unauthenticated') {
-      const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-      const encodedCallback = encodeURIComponent(currentUrl);
-      router.replace(`/auth/signin?callbackUrl=${encodedCallback}`);
-      return;
-    }
-
-    if (status === 'authenticated' && session) {
-      fetchApiKeys();
-    }
-  }, [status, session, router]);
-
-  const fetchApiKeys = async () => {
+  const fetchApiKeys = useCallback(async () => {
     try {
       const response = await fetch('/api/keys', {
         headers: {
@@ -69,7 +54,22 @@ export default function Dashboard() {
       setVisibleKeys({});
       showToast('Failed to fetch API keys', 'error');
     }
-  };
+  }, [session, router]);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (status === 'unauthenticated') {
+      const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const encodedCallback = encodeURIComponent(currentUrl);
+      router.replace(`/auth/signin?callbackUrl=${encodedCallback}`);
+      return;
+    }
+
+    if (status === 'authenticated' && session) {
+      fetchApiKeys();
+    }
+  }, [status, session, router, fetchApiKeys]);
 
   const toggleKeyVisibility = (id) => {
     setVisibleKeys(prev => ({

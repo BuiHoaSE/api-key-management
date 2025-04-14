@@ -193,7 +193,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold mb-2">Repository Summaries</h3>
               <p className="text-gray-500 mb-4">Get AI-generated summaries of repository purpose and structure.</p>
-              <p className="text-gray-700">Quickly understand what a repository does and how it's organized without reading all the code.</p>
+              <p className="text-gray-700">Quickly understand what a repository does and how it&apos;s organized without reading all the code.</p>
             </div>
 
             <div className="rounded-2xl bg-white p-8 shadow-lg">
@@ -224,7 +224,7 @@ export default function LandingPage() {
             Simple, transparent pricing
           </h2>
           <p className="text-center text-gray-600 mb-16 max-w-[900px] mx-auto md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-            Choose the plan that's right for you, from free to professional.
+            Choose the plan that&apos;s right for you, from free to professional.
           </p>
           <div className="grid gap-6 lg:grid-cols-3">
             <Card>
