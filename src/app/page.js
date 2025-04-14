@@ -16,7 +16,10 @@ export default function LandingPage() {
   const handleDashboardClick = (e) => {
     if (!session) {
       e.preventDefault();
-      signIn('google', { callbackUrl: '/dashboard' });
+      signIn('google', { 
+        callbackUrl: '/dashboard',
+        redirect: true
+      });
     }
   };
 

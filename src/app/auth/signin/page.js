@@ -3,10 +3,13 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import GoogleSignInButton from '@/app/components/GoogleSignInButton';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 function SignInContent() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = searchParams.get('callbackUrl');
 
   return (
     <div className="mx-auto w-full max-w-sm space-y-6">
@@ -22,6 +25,17 @@ function SignInContent() {
 }
 
 export default function SignIn() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl');
+
+  useEffect(() => {
+    if (session && callbackUrl) {
+      router.push(callbackUrl);
+    }
+  }, [session, router, callbackUrl]);
+
   return (
     <div className="flex min-h-screen items-center justify-center">
       <Suspense fallback={

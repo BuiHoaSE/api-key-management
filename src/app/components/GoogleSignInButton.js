@@ -9,13 +9,13 @@ export default function GoogleSignInButton() {
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = searchParams.get('callbackUrl');
 
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
-      const result = await signIn('google', { 
-        callbackUrl,
+      await signIn('google', {
+        callbackUrl: callbackUrl || window.location.href,
         redirect: true,
       });
     } catch (error) {

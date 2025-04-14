@@ -71,12 +71,15 @@ const handler = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Always redirect to the callback URL if it's provided and is a relative URL or matches the base URL
-      if (url.startsWith('/') || url.startsWith(baseUrl)) {
+      // Allows relative URLs
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) {
         return url;
       }
-      // Default to dashboard
-      return '/dashboard';
+      return baseUrl + "/dashboard";
     },
   },
 });
