@@ -5,8 +5,10 @@ import { PlusIcon, TrashIcon, EyeIcon, EyeSlashIcon, ClipboardDocumentIcon, Penc
 import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Toast from '../components/Toast';
+import { useSession } from 'next-auth/react';
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [apiKeys, setApiKeys] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,6 +21,12 @@ export default function Dashboard() {
     description: '',
     expiresIn: 30 // Default 30 days
   });
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin?callbackUrl=/dashboard');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     fetchApiKeys();
@@ -233,6 +241,21 @@ export default function Dashboard() {
       </div>
     );
   };
+
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold">Loading...</h2>
+          <p className="text-gray-500">Please wait while we load your dashboard</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
