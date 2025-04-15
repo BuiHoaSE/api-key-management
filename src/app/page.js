@@ -335,7 +335,7 @@ export default function Home() {
             <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm mb-4">
               <div className="mb-2">{'{'}</div>
               <div className="pl-4">
-                "repositoryUrl": 
+                &quot;repositoryUrl&quot;: 
                 <input
                   type="text"
                   value={repositoryUrl}
