@@ -10,6 +10,9 @@ import GoogleSignInButton from "@/app/components/GoogleSignInButton"
 export default function Home() {
   const { data: session } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [repositoryUrl, setRepositoryUrl] = useState('');
+  const [apiResponse, setApiResponse] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleDashboardClick = (e) => {
     if (!session) {
@@ -18,6 +21,27 @@ export default function Home() {
         callbackUrl: '/dashboard',
         redirect: true
       });
+    }
+  };
+
+  const handleSendRequest = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/github-summarizer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ repositoryUrl: repositoryUrl }),
+      });
+
+      const data = await response.json();
+      setApiResponse(data);
+    } catch (error) {
+      console.error('Error:', error);
+      setApiResponse({ error: 'Failed to fetch response' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -292,6 +316,71 @@ export default function Home() {
               <p className="text-gray-600">
                 Create and share custom analytics reports tailored to your specific needs.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Try It Out Section */}
+      <section className="py-20 px-4 max-w-7xl mx-auto">
+        <h2 className="text-4xl font-bold text-center mb-12 bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-transparent bg-clip-text">Try It Out</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* API Request */}
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">API Request</h3>
+              <span className="text-sm text-gray-500">Edit the payload and send a request</span>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm mb-4">
+              <div className="mb-2">{'{'}</div>
+              <div className="pl-4">
+                "repositoryUrl": 
+                <input
+                  type="text"
+                  value={repositoryUrl}
+                  onChange={(e) => setRepositoryUrl(e.target.value)}
+                  placeholder="https://github.com/username/repo"
+                  className="ml-2 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none w-64"
+                />
+              </div>
+              <div>{'}'}</div>
+            </div>
+            <div className="flex justify-between items-center">
+              <button
+                onClick={handleSendRequest}
+                disabled={isLoading || !repositoryUrl}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  isLoading || !repositoryUrl
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-black text-white hover:bg-gray-800'
+                }`}
+              >
+                {isLoading ? 'Sending...' : 'Send Request'}
+              </button>
+              <button
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                onClick={() => window.open('/docs', '_blank')}
+              >
+                Documentation
+              </button>
+            </div>
+          </div>
+
+          {/* API Response */}
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">API Response</h3>
+              <span className="text-sm text-gray-500">View the response from the API</span>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm h-[200px] overflow-auto">
+              {apiResponse ? (
+                <pre className="whitespace-pre-wrap">
+                  {JSON.stringify(apiResponse, null, 2)}
+                </pre>
+              ) : (
+                <div className="text-gray-400 italic">Response will appear here...</div>
+              )}
             </div>
           </div>
         </div>
