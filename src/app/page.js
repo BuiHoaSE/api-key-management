@@ -300,7 +300,7 @@ export default function Home() {
                 Track releases and version changes over time.
               </p>
               <p className="text-gray-600">
-                Get notified about new releases and understand what changed between versions.
+                Get notified about new releases and understand what&apos;s changed between versions.
               </p>
             </div>
 
@@ -393,7 +393,7 @@ export default function Home() {
             Pricing
           </h2>
           <p className="text-lg text-gray-600 mb-16 max-w-3xl mx-auto">
-            Choose the plan that's right for you, from free to professional.
+            Choose the plan that&apos;s right for you, from free to professional.
           </p>
 
           {/* Pricing Cards */}
