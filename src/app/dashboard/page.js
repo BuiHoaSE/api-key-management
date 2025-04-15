@@ -10,11 +10,13 @@ import {
   PlusIcon,
   MenuIcon,
   ChevronLeftIcon,
+  XIcon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Toast from '../components/Toast';
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -24,6 +26,15 @@ export default function Dashboard() {
   const [editingKey, setEditingKey] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedKey, setSelectedKey] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', type: 'dev' });
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+  const [inlineEditKey, setInlineEditKey] = useState(null);
+  const [inlineEditValue, setInlineEditValue] = useState('');
 
   // Add resize handler
   useEffect(() => {
@@ -57,28 +68,147 @@ export default function Dashboard() {
 
   const fetchApiKeys = useCallback(async () => {
     try {
+      setIsLoading(true);
       const response = await fetch('/api/keys');
+      if (!response.ok) {
+        throw new Error('Failed to fetch API keys');
+      }
       const data = await response.json();
-      setApiKeys(data);
-      setIsLoading(false);
+      setApiKeys(data || []);
     } catch (error) {
       console.error('Error fetching API keys:', error);
+      showNotification('Failed to fetch API keys', 'error');
       setApiKeys([]);
+    } finally {
       setIsLoading(false);
-      toast.error('Failed to fetch API keys');
     }
   }, []);
 
+  // Refresh API keys when component mounts
   useEffect(() => {
     fetchApiKeys();
   }, [fetchApiKeys]);
+
+  // Add handlers for options buttons
+  const toggleKeyVisibility = (keyId) => {
+    setVisibleKeys(prev => ({
+      ...prev,
+      [keyId]: !prev[keyId]
+    }));
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const copyToClipboard = async (key) => {
+    try {
+      await navigator.clipboard.writeText(key);
+      showNotification('API key copied to clipboard');
+    } catch (error) {
+      showNotification('Failed to copy API key', 'error');
+    }
+  };
+
+  const handleNewKey = () => {
+    setEditForm({ name: '', type: 'dev' });
+    setSelectedKey(null);
+    setShowEditModal(true);
+  };
+
+  const handleEdit = (key) => {
+    console.log('Edit button clicked:', key);
+    setSelectedKey(key);
+    setEditForm({
+      name: key.name,
+      type: key.type || 'dev'
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDelete = (key) => {
+    setSelectedKey(key);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedKey) return;
+    
+    try {
+      const response = await fetch(`/api/keys/${selectedKey.name}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete API key');
+      }
+
+      // Delete was successful
+      setShowDeleteModal(false);
+      showNotification('API key deleted successfully');
+      fetchApiKeys(); // Refresh the list
+    } catch (error) {
+      console.error('Error:', error);
+      showNotification(error.message || 'Failed to delete API key', 'error');
+    }
+  };
+
+  const confirmEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.name) return;
+
+    try {
+      const endpoint = selectedKey 
+        ? `/api/keys/${selectedKey.name}` // Update existing key
+        : '/api/keys'; // Create new key
+      
+      const method = selectedKey ? 'PUT' : 'POST';
+      
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update API key');
+      }
+
+      // Update was successful
+      setShowEditModal(false);
+      showNotification(selectedKey ? 'API key updated successfully' : 'API key created successfully');
+      fetchApiKeys(); // Refresh the list
+    } catch (error) {
+      console.error('Error:', error);
+      showNotification(error.message || 'Failed to update API key', 'error');
+    }
+  };
 
   if (!session) {
     return <div>Loading...</div>;
   }
 
+  // Add loading state display
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toast show={showToast} message={toastMessage} type={toastType} />
       {/* Sidebar with md: breakpoint */}
       <div className={`fixed left-0 top-0 h-full w-64 bg-white border-r transform transition-transform duration-200 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -174,7 +304,7 @@ export default function Dashboard() {
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4">API Keys</h2>
               <button 
-                onClick={() => setEditingKey('new')}
+                onClick={handleNewKey}
                 className="w-full bg-[#0066FF] text-white rounded-lg py-2.5 px-4 text-sm font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 mb-4"
               >
                 <PlusIcon className="h-5 w-5" />
@@ -197,30 +327,64 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {[
-                    { name: 'first-key', type: 'dev', usage: '1' },
-                    { name: 'second-key', type: 'dev', usage: '1' },
-                    { name: 'real api', type: 'dev', usage: '1' }
-                  ].map((key, index) => (
+                  {apiKeys.map((key, index) => (
                     <tr key={index}>
-                      <td className="px-6 py-4 text-sm text-gray-900">{key.name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 cursor-pointer relative" onClick={() => {
+                        setInlineEditKey(key.name);
+                        setInlineEditValue(key.name);
+                      }}>
+                        {inlineEditKey === key.name ? (
+                          <form 
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleEdit({ ...key, name: inlineEditValue });
+                              setInlineEditKey(null);
+                            }}
+                            className="absolute top-0 left-0 right-0 bottom-0 bg-white shadow-lg rounded-lg p-2 z-10"
+                          >
+                            <input
+                              type="text"
+                              value={inlineEditValue}
+                              onChange={(e) => setInlineEditValue(e.target.value)}
+                              className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              autoFocus
+                              onBlur={() => setInlineEditKey(null)}
+                            />
+                          </form>
+                        ) : (
+                          key.name
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-500">{key.type}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{key.usage}</td>
                       <td className="px-6 py-4 text-sm font-mono text-gray-500">
-                        ••••••••••••••••••••••••••
+                        {visibleKeys[key.name] ? key.key : '••••••••••••••••••••••••••'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center gap-2">
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button 
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            onClick={() => toggleKeyVisibility(key.name)}
+                          >
                             <EyeIcon className="w-4 h-4" />
                           </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button 
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            onClick={() => copyToClipboard(key.key)}
+                          >
                             <ClipboardIcon className="w-4 h-4" />
                           </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button 
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            onClick={() => handleEdit(key)}
+                            aria-label="Edit API key"
+                          >
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button 
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            onClick={() => handleDelete(key)}
+                          >
                             <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
@@ -233,6 +397,101 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Delete API Key</h3>
+              <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this API key? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">{selectedKey ? 'Edit API Key' : 'Create API Key'}</h3>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                type="button"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={confirmEdit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter API key name"
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={editForm.type}
+                    onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="dev">Development</option>
+                    <option value="prod">Production</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+                >
+                  {selectedKey ? 'Save Changes' : 'Create Key'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

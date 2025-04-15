@@ -46,60 +46,62 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { id } = params;
     const body = await request.json();
     
-    // Calculate new expiration date if provided
-    const updates = {
-      name: body.name,
-      description: body.description
-    };
-
-    if (body.expiresIn) {
-      updates.expires_at = new Date(Date.now() + body.expiresIn * 24 * 60 * 60 * 1000).toISOString();
+    // Validate input
+    if (!body.name || !body.type) {
+      return NextResponse.json(
+        { error: 'Name and type are required' },
+        { status: 400 }
+      );
     }
-    
+
+    // Update the API key
     const { data, error } = await supabase
       .from('api_keys')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+      .update({
+        name: body.name,
+        type: body.type
+      })
+      .eq('name', params.id);
 
     if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
-
-    if (!data) {
-      return NextResponse.json({ error: 'API key not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Failed to update API key' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error updating API key:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(request, { params }) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { id } = params;
     
     const { error } = await supabase
       .from('api_keys')
       .delete()
-      .eq('id', id);
+      .eq('name', params.id);
 
     if (error) {
-      console.error('Supabase error:', error);
-      throw error;
+      return NextResponse.json(
+        { error: 'Failed to delete API key' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting API key:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

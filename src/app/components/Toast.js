@@ -34,8 +34,8 @@ export default function Toast({ show, message, type = 'success' }) {
       leaveFrom="opacity-100"
       leaveTo="opacity-0"
     >
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-        <div className={`${style.bg} rounded-lg p-4 shadow-lg ring-1 ring-black ring-opacity-5`}>
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+        <div className={`${style.bg} rounded-lg p-4 shadow-lg ring-1 ring-black ring-opacity-5 min-w-[300px]`}>
           <div className="flex items-center gap-3">
             <Icon className={`h-5 w-5 ${style.iconColor}`} />
             <p className={`text-sm font-medium ${style.text}`}>{message}</p>
