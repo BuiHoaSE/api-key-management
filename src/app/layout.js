@@ -1,16 +1,7 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { GeistSans } from 'geist/font/sans';
 import "./globals.css";
 import { NextAuthProvider } from './providers';
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: "API Key Management",
@@ -19,11 +10,12 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <NextAuthProvider>{children}</NextAuthProvider>
+    <html lang="en" className={GeistSans.className}>
+      <body className="antialiased">
+        <NextAuthProvider>
+          {children}
+          <Toaster position="top-right" />
+        </NextAuthProvider>
       </body>
     </html>
   );
