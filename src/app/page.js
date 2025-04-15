@@ -286,7 +286,7 @@ export default function Home() {
                 Get AI-generated summaries of repository purpose and structure.
               </p>
               <p className="text-gray-600">
-                Quickly understand what a repository does and how it's organized without reading all the code.
+                Quickly understand what a repository does and how it&apos;s organized without reading all the code.
               </p>
             </div>
 
