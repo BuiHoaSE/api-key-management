@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
       key: `ak_${nanoid(32)}`,
       type: body.type,
       usage: 0,
+      rate_limit: 200,
       user_id: userId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

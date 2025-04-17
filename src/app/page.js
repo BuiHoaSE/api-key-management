@@ -335,16 +335,6 @@ export default function Home() {
               <span className="text-sm text-gray-500">Edit the payload and send a request</span>
             </div>
             <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm mb-4">
-              <div className="mb-4">
-                <div className="mb-2">API Key:</div>
-                <input
-                  type="text"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none font-mono"
-                  readOnly
-                />
-              </div>
               <div className="mb-2">{'{'}</div>
               <div className="pl-4">
                 &quot;repositoryUrl&quot;: 

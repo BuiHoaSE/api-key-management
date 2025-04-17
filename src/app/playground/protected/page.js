@@ -8,44 +8,28 @@ import Sidebar from '../../components/Sidebar';
 export default function Protected() {
   const router = useRouter();
   const { data: session } = useSession();
-  const [isValid, setIsValid] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Simply check if the key exists in session storage
     const apiKey = sessionStorage.getItem('apiKey');
+    
     if (!apiKey) {
+      // Redirect if no API key found
       router.push('/playground');
       return;
     }
-
-    // Validate the API key again on page load
-    const validateKey = async () => {
-      try {
-        const response = await fetch('/api/v1/validate-key', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ key: apiKey }),
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok || result.error || !result.data?.valid) {
-          router.push('/playground');
-        } else {
-          setIsValid(true);
-        }
-      } catch (error) {
-        console.error('Error validating API key:', error);
-        router.push('/playground');
-      }
-    };
-
-    validateKey();
+    
+    // If we have an API key, we're good to go
+    setIsLoading(false);
   }, [router]);
 
-  if (!isValid) {
-    return null;
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   return (

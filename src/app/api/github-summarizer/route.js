@@ -129,27 +129,51 @@ async function validateApiKey(apiKey) {
   }
 
   const supabase = createRouteHandlerClient({ cookies });
-  const { data, error } = await supabase
+  
+  // Step 1: Get key data
+  const { data: keyData, error: keyError } = await supabase
     .from('api_keys')
-    .select('id, type, expires_at')
+    .select('id, type, usage, rate_limit, expires_at')
     .eq('key', apiKey)
     .single();
 
-  if (error) {
-    console.error('[Debug] Error validating API key:', error);
+  if (keyError) {
+    console.error('[Debug] Error validating API key:', keyError);
     throw new ApiException('DATABASE_ERROR', 'Failed to validate API key', 500);
   }
 
-  if (!data) {
+  if (!keyData) {
     throw new ApiException('UNAUTHORIZED', 'Invalid API key', 401);
   }
 
   // Check if key is expired
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
+  if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
     throw new ApiException('UNAUTHORIZED', 'API key has expired', 401);
   }
+  
+  // Check rate limit
+  if (keyData.usage >= keyData.rate_limit) {
+    throw new ApiException('RATE_LIMIT_EXCEEDED', 'API key rate limit exceeded', 429);
+  }
+  
+  // Step 2: Increment usage
+  const { error: updateError } = await supabase
+    .from('api_keys')
+    .update({ 
+      usage: keyData.usage + 1,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', keyData.id);
+    
+  if (updateError) {
+    console.error('[Debug] Error incrementing API key usage:', updateError);
+    throw new ApiException('DATABASE_ERROR', 'Failed to update API key usage', 500);
+  }
 
-  return data;
+  return {
+    ...keyData,
+    usage: keyData.usage + 1  // Return the updated usage count
+  };
 }
 
 export async function POST(request) {

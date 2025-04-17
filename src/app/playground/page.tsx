@@ -25,6 +25,10 @@ export default function Playground() {
 
   const validateApiKey = async () => {
     if (!apiKey) return
+    if (!session?.user?.id) {
+      showNotification('Please sign in to validate API keys', 'error')
+      return
+    }
 
     setIsLoading(true)
     try {
@@ -32,16 +36,26 @@ export default function Playground() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': session.user.id
         },
-        body: JSON.stringify({ key: apiKey }),
+        credentials: 'include',
+        body: JSON.stringify({ 
+          key: apiKey,
+          shouldIncrement: false 
+        }),
       })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error?.message || 'Failed to validate API key')
+      }
 
       const result = await response.json()
 
       if (result.error) {
         showNotification(result.error.message, 'error')
       } else {
-        if (result.data.valid) {
+        if (result.data?.valid) {
           showNotification('API key is valid', 'success')
           // Store the API key in session storage
           sessionStorage.setItem('apiKey', apiKey)
@@ -57,7 +71,7 @@ export default function Playground() {
     } catch (error) {
       console.error('Error validating API key:', error)
       showNotification(
-        error instanceof ApiException ? error.message : 'Failed to validate API key',
+        error instanceof Error ? error.message : 'Failed to validate API key',
         'error'
       )
     } finally {

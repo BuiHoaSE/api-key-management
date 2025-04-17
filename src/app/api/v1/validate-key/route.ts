@@ -3,6 +3,15 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { ApiException, createApiResponse, handleApiError } from '@/utils/api-response'
 
+interface ValidateKeyResult {
+  valid: boolean
+  id: string | null
+  name: string | null
+  type: string | null
+  usage: number | null
+  rate_limit: number | null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const userId = request.headers.get('x-user-id')
@@ -24,24 +33,28 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createRouteHandlerClient({ cookies })
-    const { data, error } = await supabase
-      .from('api_keys')
-      .select('id, name, type, expires_at')
-      .eq('key', key)
-      .eq('user_id', userId)
+    
+    // Use the validate_and_increment_key function
+    const { data, error: keyError } = await supabase
+      .rpc('validate_and_increment_key', {
+        p_api_key: key,
+        p_user_id: userId
+      })
+      .returns<ValidateKeyResult>()
       .single()
 
-    if (error) {
-      console.error('[Debug] Error validating API key:', error)
+    if (keyError) {
+      console.error('[Debug] Error validating API key:', keyError)
       throw new ApiException(
         'DATABASE_ERROR',
         'Failed to validate API key',
         500,
-        error.message
+        keyError.message
       )
     }
 
-    if (!data) {
+    const keyData = data as ValidateKeyResult
+    if (!keyData?.valid) {
       return NextResponse.json(
         createApiResponse(null, {
           code: 'INVALID_KEY',
@@ -50,23 +63,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if key is expired
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      return NextResponse.json(
-        createApiResponse(null, {
-          code: 'EXPIRED_KEY',
-          message: 'API key has expired'
-        })
-      )
-    }
-
+    // Return success response
     return NextResponse.json(
       createApiResponse({
         valid: true,
         key: {
-          id: data.id,
-          name: data.name,
-          type: data.type
+          id: keyData.id,
+          name: keyData.name,
+          type: keyData.type,
+          usage: keyData.usage,
+          rate_limit: keyData.rate_limit
         }
       })
     )
