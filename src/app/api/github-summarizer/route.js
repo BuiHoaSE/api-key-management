@@ -176,6 +176,74 @@ async function validateApiKey(apiKey) {
   };
 }
 
+async function fetchRepositoryDetails(repositoryUrl) {
+  // Extract owner and repo from URL
+  const [owner, repo] = repositoryUrl.replace('https://github.com/', '').split('/');
+  
+  try {
+    // Fetch both repo details and latest release in parallel
+    const [repoResponse, releaseResponse] = await Promise.all([
+      fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'GitHub-Summarizer'
+        }
+      }),
+      fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'GitHub-Summarizer'
+        }
+      })
+    ]);
+
+    if (!repoResponse.ok) {
+      throw new Error('Failed to fetch repository details');
+    }
+
+    const repoData = await repoResponse.json();
+    let version = null;
+
+    // Try to get version from latest release
+    if (releaseResponse.ok) {
+      const releaseData = await releaseResponse.json();
+      version = releaseData.tag_name;
+    }
+
+    // If no releases found, try to get tags
+    if (!version) {
+      const tagsResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'GitHub-Summarizer'
+        }
+      });
+
+      if (tagsResponse.ok) {
+        const tagsData = await tagsResponse.json();
+        version = tagsData[0]?.name || repoData.default_branch;
+      } else {
+        version = repoData.default_branch;
+      }
+    }
+    
+    return {
+      stars: repoData.stargazers_count,
+      latest_version: version,
+      website: repoData.homepage,
+      license: repoData.license?.name || 'No license'
+    };
+  } catch (error) {
+    console.error('Error fetching repository details:', error);
+    return {
+      stars: null,
+      latest_version: null,
+      website: null,
+      license: null
+    };
+  }
+}
+
 export async function POST(request) {
   try {
     // Get API key from header
@@ -199,11 +267,26 @@ export async function POST(request) {
       );
     }
 
-    // Fetch and process README content
-    const readmeContent = await fetchReadmeContent(repositoryUrl);
+    // Fetch repository details and README content in parallel
+    const [repoDetails, readmeContent] = await Promise.all([
+      fetchRepositoryDetails(repositoryUrl),
+      fetchReadmeContent(repositoryUrl)
+    ]);
+
     const summary = await generateSummary(readmeContent);
 
-    return NextResponse.json(createApiResponse(summary));
+    // Combine all details at the same level
+    const response = {
+      summary: summary.summary,
+      key_features: summary.key_features,
+      cool_facts: summary.cool_facts,
+      stars: repoDetails.stars,
+      latest_version: repoDetails.latest_version,
+      website: repoDetails.website,
+      license: repoDetails.license
+    };
+
+    return NextResponse.json(createApiResponse(response));
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
