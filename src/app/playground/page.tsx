@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ApiException } from '@/utils/api-response'
 import Toast from '../components/Toast'
 import Sidebar from '../components/Sidebar'
+import Link from 'next/link'
 
 export default function Playground() {
   const { data: session, status } = useSession()
@@ -88,12 +89,12 @@ export default function Playground() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please sign in to use the playground</h1>
-          <a
+          <Link
             href="/api/auth/signin"
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Sign In
-          </a>
+          </Link>
         </div>
       </div>
     )
