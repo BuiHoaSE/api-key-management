@@ -4,13 +4,9 @@ import { cookies } from 'next/headers';
 import { createApiResponse } from '@/utils/api-response';
 import type { UpdateApiKeyDto } from '@/types/api-key';
 
-interface RouteContext {
-  params: Record<string, string | string[]>;
-}
-
 export async function GET(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = request.headers.get('x-user-id');
@@ -28,7 +24,7 @@ export async function GET(
     const { data, error } = await supabase
       .from('api_keys')
       .select('*')
-      .eq('id', context.params.id)
+      .eq('id', params.id)
       .eq('user_id', userId)
       .single();
 
@@ -68,7 +64,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = request.headers.get('x-user-id');
@@ -102,7 +98,7 @@ export async function PUT(
         description: body.description,
         updated_at: new Date().toISOString()
       })
-      .eq('id', context.params.id)
+      .eq('id', params.id)
       .eq('user_id', userId)
       .select()
       .single();
@@ -143,7 +139,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  context: RouteContext
+  { params }: { params: { id: string } }
 ) {
   try {
     const userId = request.headers.get('x-user-id');
@@ -161,7 +157,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('api_keys')
       .delete()
-      .eq('id', context.params.id)
+      .eq('id', params.id)
       .eq('user_id', userId);
 
     if (error) {
