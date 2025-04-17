@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import {
   EyeIcon,
   ClipboardIcon,
@@ -19,7 +19,12 @@ import { usePathname } from 'next/navigation';
 import Toast from '../components/Toast';
 
 export default function Dashboard() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      signIn();
+    },
+  });
   const pathname = usePathname();
   const [apiKeys, setApiKeys] = useState([]);
   const [visibleKeys, setVisibleKeys] = useState({});
@@ -29,12 +34,19 @@ export default function Dashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', type: 'dev' });
+  const [editForm, setEditForm] = useState({ name: '', type: 'dev', description: '' });
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [inlineEditKey, setInlineEditKey] = useState(null);
   const [inlineEditValue, setInlineEditValue] = useState('');
+
+  const showNotification = useCallback((message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }, []);
 
   // Add resize handler
   useEffect(() => {
@@ -67,27 +79,84 @@ export default function Dashboard() {
   ];
 
   const fetchApiKeys = useCallback(async () => {
+    if (status !== 'authenticated' || !session?.user?.id) {
+      console.log('[Debug] Session not ready:', { status, session });
+      return;
+    }
+
     try {
+      console.log('[Debug] Starting API keys fetch');
       setIsLoading(true);
-      const response = await fetch('/api/keys');
-      if (!response.ok) {
-        throw new Error('Failed to fetch API keys');
+      
+      const response = await fetch('/api/v1/keys', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      console.log('[Debug] Response status:', response.status);
+      
+      const text = await response.text();
+      console.log('[Debug] Raw response text:', text);
+      
+      let result;
+      try {
+        result = JSON.parse(text);
+        console.log('[Debug] Parsed response:', result);
+      } catch (e) {
+        console.error('[Debug] JSON parse error:', e);
+        throw new Error('Invalid JSON response from server');
       }
-      const data = await response.json();
-      setApiKeys(data || []);
+      
+      // Check response structure
+      if (!result || typeof result !== 'object') {
+        console.error('[Debug] Invalid response format:', result);
+        throw new Error('Invalid response format from server');
+      }
+      
+      // Check for API error
+      if (result.error) {
+        console.error('[Debug] API returned error:', result.error);
+        throw new Error(result.error.message || 'API returned an error');
+      }
+      
+      // Validate data format
+      if (!result.data || !Array.isArray(result.data)) {
+        console.error('[Debug] Invalid data format:', result);
+        throw new Error('Invalid data format from server');
+      }
+      
+      // Log pagination info if available
+      if (result.meta?.pagination) {
+        console.log('[Debug] Pagination info:', result.meta.pagination);
+      }
+      
+      setApiKeys(result.data);
     } catch (error) {
-      console.error('Error fetching API keys:', error);
-      showNotification('Failed to fetch API keys', 'error');
+      console.error('[Debug] Fetch error:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      showNotification(
+        error.message || 'Failed to fetch API keys',
+        'error'
+      );
       setApiKeys([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session, status, showNotification]);
 
-  // Refresh API keys when component mounts
   useEffect(() => {
-    fetchApiKeys();
-  }, [fetchApiKeys]);
+    if (status === 'authenticated') {
+      console.log('[Debug] Session authenticated, fetching keys');
+      fetchApiKeys();
+    }
+  }, [status, fetchApiKeys]);
 
   // Add handlers for options buttons
   const toggleKeyVisibility = (keyId) => {
@@ -97,24 +166,17 @@ export default function Dashboard() {
     }));
   };
 
-  const showNotification = (message, type = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
-
-  const copyToClipboard = async (key) => {
+  const copyToClipboard = useCallback(async (key) => {
     try {
       await navigator.clipboard.writeText(key);
       showNotification('API key copied to clipboard');
     } catch (error) {
       showNotification('Failed to copy API key', 'error');
     }
-  };
+  }, [showNotification]);
 
   const handleNewKey = () => {
-    setEditForm({ name: '', type: 'dev' });
+    setEditForm({ name: '', type: 'dev', description: '' });
     setSelectedKey(null);
     setShowEditModal(true);
   };
@@ -124,7 +186,8 @@ export default function Dashboard() {
     setSelectedKey(key);
     setEditForm({
       name: key.name,
-      type: key.type || 'dev'
+      type: key.type || 'dev',
+      description: key.description || ''
     });
     setShowEditModal(true);
   };
@@ -134,18 +197,17 @@ export default function Dashboard() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
     if (!selectedKey) return;
     
     try {
-      const response = await fetch(`/api/keys/${selectedKey.name}`, {
+      const response = await fetch(`/api/v1/keys/${selectedKey.id}`, {
         method: 'DELETE',
       });
       
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete API key');
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to delete API key');
       }
 
       // Delete was successful
@@ -156,16 +218,16 @@ export default function Dashboard() {
       console.error('Error:', error);
       showNotification(error.message || 'Failed to delete API key', 'error');
     }
-  };
+  }, [selectedKey, showNotification, fetchApiKeys]);
 
-  const confirmEdit = async (e) => {
+  const confirmEdit = useCallback(async (e) => {
     e.preventDefault();
     if (!editForm.name) return;
 
     try {
       const endpoint = selectedKey 
-        ? `/api/keys/${selectedKey.name}` // Update existing key
-        : '/api/keys'; // Create new key
+        ? `/api/v1/keys/${selectedKey.id}` // Update existing key
+        : '/api/v1/keys'; // Create new key
       
       const method = selectedKey ? 'PUT' : 'POST';
       
@@ -174,13 +236,17 @@ export default function Dashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          name: editForm.name,
+          type: editForm.type,
+          description: editForm.description
+        }),
       });
       
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update API key');
+        throw new Error(data.error?.message || `Failed to ${selectedKey ? 'update' : 'create'} API key`);
       }
 
       // Update was successful
@@ -189,12 +255,20 @@ export default function Dashboard() {
       fetchApiKeys(); // Refresh the list
     } catch (error) {
       console.error('Error:', error);
-      showNotification(error.message || 'Failed to update API key', 'error');
+      showNotification(error.message || `Failed to ${selectedKey ? 'update' : 'create'} API key`, 'error');
     }
-  };
+  }, [editForm, selectedKey, showNotification, fetchApiKeys]);
 
-  if (!session) {
-    return <div>Loading...</div>;
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading session...</div>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return null; // NextAuth will handle the redirect
   }
 
   // Add loading state display
@@ -471,6 +545,18 @@ export default function Dashboard() {
                     <option value="dev">Development</option>
                     <option value="prod">Production</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter API key description (optional)"
+                    rows={3}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">

@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { ApiException, createApiResponse } from '@/utils/api-response';
 
 function cleanMarkdownContent(content) {
   return content
@@ -120,8 +123,43 @@ async function generateSummary(readmeContent) {
   }
 }
 
+async function validateApiKey(apiKey) {
+  if (!apiKey) {
+    throw new ApiException('UNAUTHORIZED', 'API key is required', 401);
+  }
+
+  const supabase = createRouteHandlerClient({ cookies });
+  const { data, error } = await supabase
+    .from('api_keys')
+    .select('id, type, expires_at')
+    .eq('key', apiKey)
+    .single();
+
+  if (error) {
+    console.error('[Debug] Error validating API key:', error);
+    throw new ApiException('DATABASE_ERROR', 'Failed to validate API key', 500);
+  }
+
+  if (!data) {
+    throw new ApiException('UNAUTHORIZED', 'Invalid API key', 401);
+  }
+
+  // Check if key is expired
+  if (data.expires_at && new Date(data.expires_at) < new Date()) {
+    throw new ApiException('UNAUTHORIZED', 'API key has expired', 401);
+  }
+
+  return data;
+}
+
 export async function POST(request) {
   try {
+    // Get API key from header
+    const apiKey = request.headers.get('x-api-key');
+    
+    // Validate API key
+    await validateApiKey(apiKey);
+
     const { repositoryUrl } = await request.json();
 
     // Validate the URL
@@ -129,9 +167,10 @@ export async function POST(request) {
     
     if (!repositoryUrl || !githubUrlPattern.test(repositoryUrl)) {
       return NextResponse.json(
-        {
-          error: "Invalid GitHub URL. Please provide a valid GitHub repository URL (e.g., https://github.com/username/repository)"
-        },
+        createApiResponse(null, {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid GitHub URL. Please provide a valid GitHub repository URL (e.g., https://github.com/username/repository)'
+        }),
         { status: 400 }
       );
     }
@@ -140,14 +179,15 @@ export async function POST(request) {
     const readmeContent = await fetchReadmeContent(repositoryUrl);
     const summary = await generateSummary(readmeContent);
 
-    return NextResponse.json(summary);
+    return NextResponse.json(createApiResponse(summary));
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(
-      {
-        error: error.message || 'Internal Server Error'
-      },
-      { status: 500 }
+      createApiResponse(null, {
+        code: error instanceof ApiException ? error.code : 'INTERNAL_ERROR',
+        message: error.message || 'Internal Server Error'
+      }),
+      { status: error instanceof ApiException ? error.status : 500 }
     );
   }
 }
