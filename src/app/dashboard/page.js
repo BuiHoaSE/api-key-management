@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import {
   EyeIcon,
   ClipboardIcon,
@@ -15,16 +15,12 @@ import {
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Toast from '../components/Toast';
 
 export default function Dashboard() {
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      signIn();
-    },
-  });
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const [apiKeys, setApiKeys] = useState([]);
   const [visibleKeys, setVisibleKeys] = useState({});
@@ -40,6 +36,20 @@ export default function Dashboard() {
   const [toastType, setToastType] = useState('success');
   const [inlineEditKey, setInlineEditKey] = useState(null);
   const [inlineEditValue, setInlineEditValue] = useState('');
+
+  // Navigation items
+  const navItems = [
+    { name: 'Overview', href: '/dashboard' },
+    { name: 'My Account', href: '/dashboard/account' },
+    { name: 'API Playground', href: '/playground' },
+    { name: 'Documentation', href: '/docs' }
+  ];
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/api/auth/signin');
+    }
+  }, [status, router]);
 
   const showNotification = useCallback((message, type = 'success') => {
     setToastMessage(message);
@@ -70,16 +80,8 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Navigation items
-  const navItems = [
-    { name: 'Overview', href: '/dashboard' },
-    { name: 'My Account', href: '/dashboard/account' },
-    { name: 'API Playground', href: '/playground' },
-    { name: 'Documentation', href: '/docs' }
-  ];
-
   const fetchApiKeys = useCallback(async () => {
-    if (status !== 'authenticated' || !session?.user?.id) {
+    if (status !== 'authenticated' || !session?.user?.email) {
       console.log('[Debug] Session not ready:', { status, session });
       return;
     }
@@ -99,52 +101,21 @@ export default function Dashboard() {
       
       console.log('[Debug] Response status:', response.status);
       
-      const text = await response.text();
-      console.log('[Debug] Raw response text:', text);
-      
-      let result;
-      try {
-        result = JSON.parse(text);
-        console.log('[Debug] Parsed response:', result);
-      } catch (e) {
-        console.error('[Debug] JSON parse error:', e);
-        throw new Error('Invalid JSON response from server');
+      if (!response.ok) {
+        throw new Error('Failed to fetch API keys');
       }
+
+      const result = await response.json();
+      console.log('[Debug] Parsed response:', result);
       
-      // Check response structure
-      if (!result || typeof result !== 'object') {
-        console.error('[Debug] Invalid response format:', result);
-        throw new Error('Invalid response format from server');
-      }
-      
-      // Check for API error
       if (result.error) {
-        console.error('[Debug] API returned error:', result.error);
-        throw new Error(result.error.message || 'API returned an error');
+        throw new Error(result.error.message || 'Failed to fetch API keys');
       }
-      
-      // Validate data format
-      if (!result.data || !Array.isArray(result.data)) {
-        console.error('[Debug] Invalid data format:', result);
-        throw new Error('Invalid data format from server');
-      }
-      
-      // Log pagination info if available
-      if (result.meta?.pagination) {
-        console.log('[Debug] Pagination info:', result.meta.pagination);
-      }
-      
-      setApiKeys(result.data);
+
+      setApiKeys(result.data || []);
     } catch (error) {
-      console.error('[Debug] Fetch error:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
-      showNotification(
-        error.message || 'Failed to fetch API keys',
-        'error'
-      );
+      console.error('[Debug] Fetch error:', error);
+      showNotification(error.message || 'Failed to fetch API keys', 'error');
       setApiKeys([]);
     } finally {
       setIsLoading(false);
@@ -259,23 +230,43 @@ export default function Dashboard() {
     }
   }, [editForm, selectedKey, showNotification, fetchApiKeys]);
 
+  // Loading state for session check
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading session...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading session...</p>
+        </div>
       </div>
     );
   }
 
+  // Redirect state
   if (status === 'unauthenticated') {
-    return null; // NextAuth will handle the redirect
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Please sign in to continue</p>
+          <Link
+            href="/api/auth/signin"
+            className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  // Add loading state display
+  // Loading state for API keys
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading API keys...</p>
+        </div>
       </div>
     );
   }
