@@ -1,4 +1,4 @@
-import { createServerClient } from './supabase/server'
+import { createServerSupabaseClient } from './supabase/server'
 import { NextResponse } from 'next/server'
 import { ApiException } from './api-response'
 import { getServerSession } from 'next-auth'
@@ -13,7 +13,7 @@ export async function requireAuth() {
     }
 
     // Optional Supabase session check
-    const supabase = createServerClient()
+    const supabase = createServerSupabaseClient()
     const { data: { session: supabaseSession }, error: supabaseError } = await supabase.auth.getSession()
 
     // Return user data with Supabase session if available
