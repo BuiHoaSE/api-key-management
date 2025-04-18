@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { ApiException, createApiResponse } from '@/utils/api-response';
 
 function cleanMarkdownContent(content) {
@@ -123,57 +125,45 @@ async function generateSummary(readmeContent) {
   }
 }
 
-async function validateApiKey(apiKey) {
+async function validateApiKey(apiKey, userId) {
   if (!apiKey) {
     throw new ApiException('UNAUTHORIZED', 'API key is required', 401);
+  }
+  if (!userId) {
+    throw new ApiException('UNAUTHORIZED', 'User authentication is required', 401);
   }
 
   const supabase = createRouteHandlerClient({ cookies });
   
-  // Step 1: Get key data
+  // Step 1: Get key data and check ownership
   const { data: keyData, error: keyError } = await supabase
     .from('api_keys')
-    .select('id, type, usage, rate_limit, expires_at')
+    .select('id, type, usage, rate_limit, expires_at, user_id') 
     .eq('key', apiKey)
+    .eq('user_id', userId)
     .single();
 
   if (keyError) {
+    if (keyError.code === 'PGRST116') {
+       throw new ApiException('UNAUTHORIZED', 'Invalid API key or key does not belong to this user', 401);
+    }
     console.error('[Debug] Error validating API key:', keyError);
     throw new ApiException('DATABASE_ERROR', 'Failed to validate API key', 500);
   }
 
-  if (!keyData) {
-    throw new ApiException('UNAUTHORIZED', 'Invalid API key', 401);
+  if (!keyData || keyData.user_id !== userId) { 
+    throw new ApiException('UNAUTHORIZED', 'Invalid API key for this user', 401);
   }
 
-  // Check if key is expired
   if (keyData.expires_at && new Date(keyData.expires_at) < new Date()) {
     throw new ApiException('UNAUTHORIZED', 'API key has expired', 401);
   }
   
-  // Check rate limit
   if (keyData.usage >= keyData.rate_limit) {
     throw new ApiException('RATE_LIMIT_EXCEEDED', 'API key rate limit exceeded', 429);
   }
-  
-  // Step 2: Increment usage
-  const { error: updateError } = await supabase
-    .from('api_keys')
-    .update({ 
-      usage: keyData.usage + 1,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', keyData.id);
-    
-  if (updateError) {
-    console.error('[Debug] Error incrementing API key usage:', updateError);
-    throw new ApiException('DATABASE_ERROR', 'Failed to update API key usage', 500);
-  }
 
-  return {
-    ...keyData,
-    usage: keyData.usage + 1  // Return the updated usage count
-  };
+  return keyData;
 }
 
 async function fetchRepositoryDetails(repositoryUrl) {
@@ -245,27 +235,54 @@ async function fetchRepositoryDetails(repositoryUrl) {
 }
 
 export async function POST(request) {
+  let keyToIncrementId = null;
+  const cookieStore = cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  
   try {
+    // Get user session using Next-Auth
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      throw new ApiException('UNAUTHORIZED', 'User authentication is required', 401);
+    }
+
+    // Get user ID from Supabase using email
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', session.user.email)
+      .single();
+
+    if (userError || !userData?.id) {
+      console.error('Error getting user ID:', userError);
+      throw new ApiException('UNAUTHORIZED', 'Invalid user session', 401);
+    }
+
+    const userId = userData.id;
+
     // Get API key from header
     const apiKey = request.headers.get('x-api-key');
     
-    // Validate API key
-    await validateApiKey(apiKey);
+    // Validate the API key belongs to the user and meets limits
+    const validatedKeyData = await validateApiKey(apiKey, userId);
+    keyToIncrementId = validatedKeyData.id;
+    const currentUsage = validatedKeyData.usage;
 
+    // Get repository URL from body
     const { repositoryUrl } = await request.json();
 
-    // Validate the URL
+    // Validate the URL format
     const githubUrlPattern = /^https:\/\/github\.com\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-_]+$/;
-    
-    if (!repositoryUrl || !githubUrlPattern.test(repositoryUrl)) {
-      return NextResponse.json(
-        createApiResponse(null, {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid GitHub URL. Please provide a valid GitHub repository URL (e.g., https://github.com/username/repository)'
-        }),
-        { status: 400 }
-      );
-    }
+    if (!repositoryUrl || typeof repositoryUrl !== 'string' || !githubUrlPattern.test(repositoryUrl)) {
+       return NextResponse.json(
+         createApiResponse(null, {
+           code: 'VALIDATION_ERROR',
+           message: 'Invalid GitHub URL. Please provide a valid GitHub repository URL (e.g., https://github.com/username/repository)'
+         }),
+         { status: 400 }
+       );
+     }
 
     // Fetch repository details and README content in parallel
     const [repoDetails, readmeContent] = await Promise.all([
@@ -275,8 +292,8 @@ export async function POST(request) {
 
     const summary = await generateSummary(readmeContent);
 
-    // Combine all details at the same level
-    const response = {
+    // Combine all details
+    const responseData = {
       summary: summary.summary,
       key_features: summary.key_features,
       cool_facts: summary.cool_facts,
@@ -286,7 +303,21 @@ export async function POST(request) {
       license: repoDetails.license
     };
 
-    return NextResponse.json(createApiResponse(response));
+    // Increment usage count
+    const { error: updateError } = await supabase
+      .from('api_keys')
+      .update({ 
+        usage: currentUsage + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', keyToIncrementId);
+      
+    if (updateError) {
+      console.error('[Warning] Failed to increment API key usage for key ID:', keyToIncrementId, updateError);
+    }
+
+    return NextResponse.json(createApiResponse(responseData));
+
   } catch (error) {
     console.error('API Error:', error);
     return NextResponse.json(

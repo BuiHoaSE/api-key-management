@@ -27,12 +27,13 @@ const handler = NextAuth({
           // Check if user exists
           const { data: existingUser, error: queryError } = await supabase
             .from('users')
-            .select()
+            .select('id, email')
             .eq('email', user.email)
             .single();
 
-          if (queryError) {
+          if (queryError && queryError.code !== 'PGRST116') {
             console.error('Error checking for existing user:', queryError);
+            return false;
           }
 
           if (!existingUser) {
@@ -49,25 +50,39 @@ const handler = NextAuth({
             const { data, error } = await supabase
               .from('users')
               .insert([newUser])
-              .select()
+              .select('id, email')
               .single();
 
             if (error) {
               console.error('Error creating new user:', error);
-              throw error;
+              return false;
             }
             console.log('Successfully created new user:', data);
+            // Store Supabase user ID in the user object
+            user.supabaseId = data.id;
+          } else {
+            // Store existing Supabase user ID in the user object
+            user.supabaseId = existingUser.id;
           }
           return true;
         } catch (error) {
           console.error('Error in signIn callback:', error);
-          return true;
+          return false;
         }
       }
       return true;
     },
+    async jwt({ token, user, account }) {
+      // If signing in, add the Supabase user ID to the token
+      if (account && user) {
+        token.supabaseId = user.supabaseId;
+      }
+      return token;
+    },
     async session({ session, token }) {
-      session.user.id = token.sub;
+      if (token?.supabaseId) {
+        session.user.id = token.supabaseId;
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {

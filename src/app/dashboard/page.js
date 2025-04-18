@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import {
   EyeIcon,
   ClipboardIcon,
@@ -11,12 +11,19 @@ import {
   MenuIcon,
   ChevronLeftIcon,
   XIcon,
+  LogOutIcon,
+  HomeIcon,
+  CodeIcon,
+  FileTextIcon,
+  BookOpenIcon,
+  UserIcon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Toast from '../components/Toast';
+import DashboardSidebar from '../components/DashboardSidebar';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -37,12 +44,12 @@ export default function Dashboard() {
   const [inlineEditKey, setInlineEditKey] = useState(null);
   const [inlineEditValue, setInlineEditValue] = useState('');
 
-  // Navigation items
+  // Navigation items with icons
   const navItems = [
-    { name: 'Overview', href: '/dashboard' },
-    { name: 'My Account', href: '/dashboard/account' },
-    { name: 'API Playground', href: '/playground' },
-    { name: 'Documentation', href: '/docs' }
+    { name: 'Overview', href: '/dashboard', icon: HomeIcon },
+    { name: 'My Account', href: '/dashboard/account', icon: UserIcon },
+    { name: 'API Playground', href: '/playground', icon: CodeIcon },
+    { name: 'Documentation', href: '/docs', icon: BookOpenIcon }
   ];
 
   useEffect(() => {
@@ -230,6 +237,10 @@ export default function Dashboard() {
     }
   }, [editForm, selectedKey, showNotification, fetchApiKeys]);
 
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/' });
+  };
+
   // Loading state for session check
   if (status === 'loading') {
     return (
@@ -274,190 +285,151 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Toast show={showToast} message={toastMessage} type={toastType} />
-      {/* Sidebar with md: breakpoint */}
-      <div className={`fixed left-0 top-0 h-full w-64 bg-white border-r transform transition-transform duration-200 ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } z-20`}>
-        <div className="flex items-center justify-between h-16 px-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8">
-              <svg viewBox="0 0 24 24" className="w-full h-full text-blue-600">
-                <path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-              </svg>
-            </div>
-            <span className="text-xl font-semibold">API Keys</span>
-          </Link>
-          {/* Sidebar toggle button */}
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="p-1.5 text-gray-400 hover:text-gray-600"
-          >
-            <ChevronLeftIcon className="h-5 w-5" />
-          </button>
-        </div>
-        <nav className="px-2 pt-4">
-          <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    pathname === item.href
-                      ? 'text-gray-900 bg-gray-50'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
-
-      {/* Main content with md: breakpoint */}
-      <div className={`transition-all duration-200 ${isSidebarOpen ? 'md:ml-64' : 'ml-0'}`}>
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-4">
-              {/* Header toggle button - only visible when sidebar is hidden */}
-              {!isSidebarOpen && (
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 text-gray-600 hover:text-gray-900 -ml-2"
-                >
-                  <MenuIcon className="h-5 w-5" />
-                </button>
-              )}
-              <h1 className="text-2xl font-semibold">Overview</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">Operational</span>
-            </div>
-          </div>
-
-          {/* Current Plan Card */}
-          <div className="bg-gradient-to-r from-[#F4C6C6] via-[#BDB4E0] to-[#B4C6F0] rounded-2xl p-6 mb-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <div className="text-sm font-medium text-white/90">CURRENT PLAN</div>
-                <button className="text-sm text-white/90 bg-white/10 px-3 py-1.5 rounded-lg hover:bg-white/20 transition-all">
-                  Manage Plan
-                </button>
+      <div className="flex">
+        <DashboardSidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+        <div className={`flex-1 transition-all duration-200 ${isSidebarOpen ? 'md:ml-64' : 'ml-0'}`}>
+          <div className="p-8">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-4">
+                {/* Header toggle button - only visible when sidebar is hidden */}
+                {!isSidebarOpen && (
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 text-gray-600 hover:text-gray-900 -ml-2"
+                  >
+                    <MenuIcon className="h-5 w-5" />
+                  </button>
+                )}
+                <h1 className="text-2xl font-semibold">Overview</h1>
               </div>
-              
-              <h2 className="text-4xl font-bold text-white">Researcher</h2>
-              
-              <div className="space-y-3">
-                <div>
-                  <div className="text-sm font-medium text-white/90 mb-2">API Usage</div>
-                  <div className="w-full h-1 bg-white/20 rounded-full">
-                    <div className="w-[10%] h-full bg-white rounded-full"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Operational</span>
+              </div>
+            </div>
+
+            {/* Current Plan Card */}
+            <div className="bg-gradient-to-r from-[#F4C6C6] via-[#BDB4E0] to-[#B4C6F0] rounded-2xl p-6 mb-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm font-medium text-white/90">CURRENT PLAN</div>
+                  <button className="text-sm text-white/90 bg-white/10 px-3 py-1.5 rounded-lg hover:bg-white/20 transition-all">
+                    Manage Plan
+                  </button>
+                </div>
+                
+                <h2 className="text-4xl font-bold text-white">Researcher</h2>
+                
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm font-medium text-white/90 mb-2">API Usage</div>
+                    <div className="w-full h-1 bg-white/20 rounded-full">
+                      <div className="w-[10%] h-full bg-white rounded-full"></div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm font-medium text-white/90">Plan</div>
+                    <div className="text-sm font-medium text-white/90">1/1,000 Credits</div>
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div className="text-sm font-medium text-white/90">Plan</div>
-                  <div className="text-sm font-medium text-white/90">1/1,000 Credits</div>
-                </div>
               </div>
             </div>
-          </div>
 
-          {/* API Keys Section */}
-          <div className="bg-white rounded-2xl shadow-sm">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">API Keys</h2>
-              <button 
-                onClick={handleNewKey}
-                className="w-full bg-[#0066FF] text-white rounded-lg py-2.5 px-4 text-sm font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 mb-4"
-              >
-                <PlusIcon className="h-5 w-5" />
-                New API Key
-              </button>
-              <p className="text-sm text-gray-600">
-                The key is used to authenticate your requests to the Research API.
-              </p>
-            </div>
+            {/* API Keys Section */}
+            <div className="bg-white rounded-2xl shadow-sm">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">API Keys</h2>
+                <button 
+                  onClick={handleNewKey}
+                  className="w-full bg-[#0066FF] text-white rounded-lg py-2.5 px-4 text-sm font-medium hover:bg-blue-600 transition-all flex items-center justify-center gap-2 mb-4"
+                >
+                  <PlusIcon className="h-5 w-5" />
+                  New API Key
+                </button>
+                <p className="text-sm text-gray-600">
+                  The key is used to authenticate your requests to the Research API.
+                </p>
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-t border-gray-100">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Usage</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Key</th>
-                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Options</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {apiKeys.map((key, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 text-sm text-gray-900 cursor-pointer relative" onClick={() => {
-                        setInlineEditKey(key.name);
-                        setInlineEditValue(key.name);
-                      }}>
-                        {inlineEditKey === key.name ? (
-                          <form 
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              handleEdit({ ...key, name: inlineEditValue });
-                              setInlineEditKey(null);
-                            }}
-                            className="absolute top-0 left-0 right-0 bottom-0 bg-white shadow-lg rounded-lg p-2 z-10"
-                          >
-                            <input
-                              type="text"
-                              value={inlineEditValue}
-                              onChange={(e) => setInlineEditValue(e.target.value)}
-                              className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              autoFocus
-                              onBlur={() => setInlineEditKey(null)}
-                            />
-                          </form>
-                        ) : (
-                          key.name
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{key.type}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{key.usage}</td>
-                      <td className="px-6 py-4 text-sm font-mono text-gray-500">
-                        {visibleKeys[key.name] ? key.key : '••••••••••••••••••••••••••'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center gap-2">
-                          <button 
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            onClick={() => toggleKeyVisibility(key.name)}
-                          >
-                            <EyeIcon className="w-4 h-4" />
-                          </button>
-                          <button 
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            onClick={() => copyToClipboard(key.key)}
-                          >
-                            <ClipboardIcon className="w-4 h-4" />
-                          </button>
-                          <button 
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            onClick={() => handleEdit(key)}
-                            aria-label="Edit API key"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button 
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                            onClick={() => handleDelete(key)}
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-t border-gray-100">
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Usage</th>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Key</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Options</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {apiKeys.map((key, index) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4 text-sm text-gray-900 cursor-pointer relative" onClick={() => {
+                          setInlineEditKey(key.name);
+                          setInlineEditValue(key.name);
+                        }}>
+                          {inlineEditKey === key.name ? (
+                            <form 
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleEdit({ ...key, name: inlineEditValue });
+                                setInlineEditKey(null);
+                              }}
+                              className="absolute top-0 left-0 right-0 bottom-0 bg-white shadow-lg rounded-lg p-2 z-10"
+                            >
+                              <input
+                                type="text"
+                                value={inlineEditValue}
+                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                                onBlur={() => setInlineEditKey(null)}
+                              />
+                            </form>
+                          ) : (
+                            key.name
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{key.type}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{key.usage}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-gray-500">
+                          {visibleKeys[key.name] ? key.key : '••••••••••••••••••••••••••'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center gap-2">
+                            <button 
+                              className="p-1 text-gray-400 hover:text-gray-600"
+                              onClick={() => toggleKeyVisibility(key.name)}
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                              className="p-1 text-gray-400 hover:text-gray-600"
+                              onClick={() => copyToClipboard(key.key)}
+                            >
+                              <ClipboardIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                              className="p-1 text-gray-400 hover:text-gray-600"
+                              onClick={() => handleEdit(key)}
+                              aria-label="Edit API key"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                              className="p-1 text-gray-400 hover:text-gray-600"
+                              onClick={() => handleDelete(key)}
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

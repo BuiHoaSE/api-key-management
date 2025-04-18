@@ -1,84 +1,66 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { ApiException } from '@/utils/api-response'
-import Toast from '../components/Toast'
-import Sidebar from '../components/Sidebar'
+import DashboardSidebar from '../components/DashboardSidebar'
 import Link from 'next/link'
+import { MenuIcon } from 'lucide-react'
 
 export default function Playground() {
   const { data: session, status } = useSession()
-  const router = useRouter()
   const [apiKey, setApiKey] = useState('')
+  const [repositoryUrl, setRepositoryUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
-  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+  const [apiResponse, setApiResponse] = useState<any>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
-  const showNotification = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage(message)
-    setToastType(type)
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
-  }, [])
-
-  const validateApiKey = async () => {
-    if (!apiKey) return
-    if (!session?.user?.id) {
-      showNotification('Please sign in to validate API keys', 'error')
+  const handleRequest = async () => {
+    if (!apiKey || !repositoryUrl) {
+      setApiResponse({ error: { message: 'API Key and Repository URL are required.' } })
+      return
+    }
+    if (!session) {
+      setApiResponse({ error: { message: 'Please sign in to use the playground.' } })
       return
     }
 
     setIsLoading(true)
+    setApiResponse(null)
+
     try {
-      const response = await fetch('/api/v1/validate-key', {
+      console.log('Calling GitHub Summarizer API...');
+      const response = await fetch('/api/github-summarizer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': session.user.id
+          'x-api-key': apiKey,
         },
         credentials: 'include',
         body: JSON.stringify({ 
-          key: apiKey,
-          shouldIncrement: false 
+          repositoryUrl: repositoryUrl,
         }),
-      })
+      });
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error?.message || 'Failed to validate API key')
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.error?.code === "UNAUTHORIZED") {
+        result.error.message = "Invalid API key";
       }
+      
+      setApiResponse(result);
 
-      const result = await response.json()
-
-      if (result.error) {
-        showNotification(result.error.message, 'error')
-      } else {
-        if (result.data?.valid) {
-          showNotification('API key is valid', 'success')
-          // Store the API key in session storage
-          sessionStorage.setItem('apiKey', apiKey)
-          // Redirect to protected page after a short delay to show the success message
-          setTimeout(() => {
-            router.push('/playground/protected')
-          }, 1000)
-        } else {
-          showNotification('Invalid API key', 'error')
-          setApiKey('') // Clear the input field
-        }
-      }
     } catch (error) {
-      console.error('Error validating API key:', error)
-      showNotification(
-        error instanceof Error ? error.message : 'Failed to validate API key',
-        'error'
-      )
+      console.error('Error calling API:', error);
+      setApiResponse({ 
+        error: { 
+          message: error instanceof Error ? error.message : 'An unexpected client-side error occurred.' 
+        } 
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   if (status === 'loading') {
     return <div>Loading...</div>
@@ -101,50 +83,86 @@ export default function Playground() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-semibold">API Playground</h1>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">Operational</span>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        <DashboardSidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+        <div className={`flex-1 transition-all duration-200 ${isSidebarOpen ? 'md:ml-64' : 'ml-0'}`}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-4">
+                {!isSidebarOpen && (
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 text-gray-600 hover:text-gray-900 -ml-2"
+                  >
+                    <MenuIcon className="h-5 w-5" />
+                  </button>
+                )}
+                <h1 className="text-2xl font-semibold">API Playground</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Operational</span>
+              </div>
             </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">Validate API Key</h2>
             
-            <div className="mb-4">
-              <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
-                API Key
-              </label>
-              <input
-                type="text"
-                id="apiKey"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter your API key"
-              />
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <h2 className="text-xl font-semibold mb-4">GitHub Summarizer Request</h2>
+              
+              <div className="mb-4">
+                <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-1">
+                  API Key
+                </label>
+                <input
+                  type="text"
+                  id="apiKey"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter your API key"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="repositoryUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                  Repository URL
+                </label>
+                <input
+                  type="text"
+                  id="repositoryUrl"
+                  value={repositoryUrl}
+                  onChange={(e) => setRepositoryUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., https://github.com/username/repo"
+                />
+              </div>
+
+              <button
+                onClick={handleRequest}
+                disabled={isLoading || !apiKey || !repositoryUrl}
+                className={`px-4 py-2 rounded-md text-white font-medium ${
+                  isLoading || !apiKey || !repositoryUrl
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600'
+                }`}
+              >
+                {isLoading ? 'Processing...' : 'Submit'}
+              </button>
             </div>
 
-            <button
-              onClick={validateApiKey}
-              disabled={isLoading || !apiKey}
-              className={`px-4 py-2 rounded-md text-white ${
-                isLoading || !apiKey
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-500 hover:bg-blue-600'
-              }`}
-            >
-              {isLoading ? 'Validating...' : 'Validate Key'}
-            </button>
+            {apiResponse && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">API Response</h2>
+                <div className="bg-gray-100 rounded p-4 max-h-96 overflow-auto">
+                  <pre className="text-sm font-mono whitespace-pre-wrap break-all">
+                    {JSON.stringify(apiResponse, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </main>
-      <Toast show={showToast} message={toastMessage} type={toastType} />
+      </div>
     </div>
   )
 } 
