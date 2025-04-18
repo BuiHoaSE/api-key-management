@@ -1,0 +1,5 @@
+[33mcommit e01981e599e911f0c81b6eded1d2b32b61ae29cd[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: BuiHoaSE <hoa.bui@arent3d.com>
+Date:   Thu Apr 17 23:38:37 2025 +0700
+
+    fix: update route parameter types to match Next.js App Router requirements
