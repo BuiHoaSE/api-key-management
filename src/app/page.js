@@ -115,32 +115,61 @@ export default function Home() {
         {isMenuOpen && (
           <div className="md:hidden border-t bg-white">
             <nav className="flex flex-col py-2">
+              {session && (
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                  {session.user?.image && (
+                    <Image
+                      src={session.user.image}
+                      alt={session.user.name || "Profile picture"}
+                      width={32}
+                      height={32}
+                      className="rounded-full"
+                    />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900">{session.user?.name}</span>
+                    <span className="text-xs text-gray-500">{session.user?.email}</span>
+                  </div>
+                </div>
+              )}
               <Link 
                 href="#features" 
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Features
               </Link>
               <Link 
                 href="#pricing" 
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Pricing
               </Link>
-          <Link
+              <Link
                 href={session ? "/dashboard" : "#"} 
                 onClick={(e) => {
                   handleDashboardClick(e);
                   setIsMenuOpen(false);
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Dashboard
               </Link>
-              <div className="px-4 py-2">
-                {!session && <GoogleSignInButton />}
+              <div className="px-4 py-2.5 border-t border-gray-100">
+                {session ? (
+                  <button 
+                    onClick={() => {
+                      signOut();
+                      setIsMenuOpen(false);
+                    }}
+                    className="text-sm font-medium text-red-600 hover:text-red-700"
+                  >
+                    Sign out
+                  </button>
+                ) : (
+                  <GoogleSignInButton />
+                )}
               </div>
             </nav>
           </div>
@@ -148,56 +177,56 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-16 text-center">
-        <h1 className="text-[64px] font-bold leading-[1.1] tracking-tight">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-16 pb-8 sm:pb-16 text-center">
+        <h1 className="text-4xl sm:text-5xl md:text-[64px] font-bold leading-[1.1] tracking-tight">
           <div className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFA347] via-[#FF5B51] to-[#FF4545]">
             Everything you need
-            <br />
+            <br className="hidden sm:block" />
             to analyze GitHub
-            <br />
+            <br className="hidden sm:block" />
             repositories
           </div>
         </h1>
-        <p className="text-lg text-gray-600 mt-8 mb-8 max-w-2xl mx-auto">
+        <p className="text-base sm:text-lg text-gray-600 mt-6 sm:mt-8 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
           Our platform provides comprehensive insights and analytics for any open source GitHub repository.
         </p>
-        <div className="flex gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center px-4">
           <button 
             onClick={handleDashboardClick}
-            className="px-6 py-2.5 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-[#FFA347] via-[#FF5B51] to-[#FF4545] hover:opacity-90 transition-all flex items-center"
+            className="w-full sm:w-auto px-6 py-2.5 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-[#FFA347] via-[#FF5B51] to-[#FF4545] hover:opacity-90 transition-all flex items-center justify-center"
           >
             Get Started
             <ArrowRight className="h-4 w-4 ml-2" />
           </button>
-          <Link href="#features">
-            <button className="px-6 py-2.5 text-sm font-medium text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
+          <Link href="#features" className="w-full sm:w-auto">
+            <button className="w-full px-6 py-2.5 text-sm font-medium text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
               Learn More
             </button>
           </Link>
         </div>
 
         {/* Repository Preview Card */}
-        <div className="mt-16 max-w-3xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-2 mb-5">
+        <div className="mt-8 sm:mt-16 max-w-3xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4 sm:mb-5">
               <Github className="h-5 w-5 text-gray-700" />
-              <Link href="https://github.com/facebook/react" className="text-base text-blue-600 hover:underline font-medium">
+              <Link href="https://github.com/facebook/react" className="text-sm sm:text-base text-blue-600 hover:underline font-medium">
                 facebook/react
               </Link>
             </div>
 
-            <div className="text-center mb-8">
-              <h3 className="text-xl font-medium mb-3 text-gray-900">Repository Summary</h3>
-              <p className="text-base text-gray-600">
+            <div className="text-center mb-6 sm:mb-8">
+              <h3 className="text-lg sm:text-xl font-medium mb-2 sm:mb-3 text-gray-900">Repository Summary</h3>
+              <p className="text-sm sm:text-base text-gray-600">
                 React is a JavaScript library for building user interfaces. Declarative, component-based, and learn-once, write-anywhere.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-6 text-center">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 text-center">
               <div>
                 <div className="flex items-center justify-center gap-1.5 text-amber-500">
-                  <Star className="h-5 w-5" />
-                  <span className="text-base font-medium">212.5k</span>
+                  <Star className="h-4 sm:h-5 w-4 sm:w-5" />
+                  <span className="text-sm sm:text-base font-medium">212.5k</span>
                 </div>
                 <div className="text-sm text-gray-600 mt-1">Stars</div>
               </div>
