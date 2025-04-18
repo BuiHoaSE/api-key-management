@@ -12,7 +12,21 @@ export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [apiKey, setApiKey] = useState('ak_EbrHbMqbBp4OcQm2fs0K3GzUILZrfFO6');
-  const [apiResponse, setApiResponse] = useState(null);
+  const [apiResponse, setApiResponse] = useState({
+    "data": {
+      "summary": "#### English | 中文 | 日本語 | 한국어 # 🔎 GPT Researcher **GPT Researcher is an open deep research agent designed for both web and local research on any given task.**",
+      "key_features": [],
+      "cool_facts": [
+        "#### English | 中文 | 日本語 | 한국어 # 🔎 GPT Researcher **GPT Researcher is an open deep research agent designed for both web and local research on any given task",
+        "GPT Researcher provides a full suite of customization options to create tailor made and domain specific research agents",
+        "## 👪 Multi-Agent Assistant As AI evolves from prompt engineering and RAG to multi-agent systems, we're excited to introduce our new multi-agent assistant built with LangGraph"
+      ],
+      "stars": 20987,
+      "latest_version": "v3.2.7",
+      "website": "https://gptr.dev",
+      "license": "Apache License 2.0"
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDashboardClick = (e) => {
@@ -44,6 +58,16 @@ export default function Home() {
       setApiResponse({ error: 'Failed to fetch response' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTryItClick = (e) => {
+    if (!session) {
+      e.preventDefault();
+      signIn('google', { 
+        callbackUrl: '/playground',
+        redirect: true
+      });
     }
   };
 
@@ -146,7 +170,7 @@ export default function Home() {
               >
                 Pricing
               </Link>
-              <Link
+          <Link
                 href={session ? "/dashboard" : "#"} 
                 onClick={(e) => {
                   handleDashboardClick(e);
@@ -353,65 +377,52 @@ export default function Home() {
       </section>
 
       {/* Try It Out Section */}
-      <section className="py-20 px-4 max-w-7xl mx-auto">
-        <h2 className="text-4xl font-bold text-center mb-12 bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-transparent bg-clip-text">Try It Out</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* API Request */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">API Request</h3>
-              <span className="text-sm text-gray-500">Edit the payload and send a request</span>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm mb-4">
-              <div className="mb-2">{'{'}</div>
-              <div className="pl-4">
-                &quot;repositoryUrl&quot;: 
-                <input
-                  type="text"
-                  value={repositoryUrl}
-                  onChange={(e) => setRepositoryUrl(e.target.value)}
-                  placeholder="https://github.com/username/repo"
-                  className="ml-2 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none w-64"
-                />
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-4xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-[#8A2BE2] to-[#4169E1] mb-12">
+            Try It Out
+          </h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* API Request */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">API Request</h3>
+                <span className="text-sm text-gray-500">Edit the payload and send a request</span>
               </div>
-              <div>{'}'}</div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Repository URL
+                  </label>
+                  <input
+                    type="text"
+                    value="https://github.com/assafelovic/gpt-researcher"
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+                  />
+                </div>
+                <Link
+                  href={session ? "/playground" : "#"}
+                  onClick={handleTryItClick}
+                  className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Try It
+                </Link>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <button
-                onClick={handleSendRequest}
-                disabled={isLoading || !repositoryUrl}
-                className={`px-4 py-2 rounded-lg font-medium ${
-                  isLoading || !repositoryUrl
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-black text-white hover:bg-gray-800'
-                }`}
-              >
-                {isLoading ? 'Sending...' : 'Send Request'}
-              </button>
-              <button
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                onClick={() => window.open('/docs', '_blank')}
-              >
-                Documentation
-              </button>
-            </div>
-          </div>
 
-          {/* API Response */}
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">API Response</h3>
-              <span className="text-sm text-gray-500">View the response from the API</span>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm h-[200px] overflow-auto">
-              {apiResponse ? (
-                <pre className="whitespace-pre-wrap">
+            {/* API Response */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">API Response</h3>
+                <span className="text-sm text-gray-500">View the response from the API</span>
+              </div>
+              <div className="bg-gray-50 rounded-md p-4 h-[300px] overflow-auto">
+                <pre className="text-sm whitespace-pre-wrap">
                   {JSON.stringify(apiResponse, null, 2)}
                 </pre>
-              ) : (
-                <div className="text-gray-400 italic">Response will appear here...</div>
-              )}
+              </div>
             </div>
           </div>
         </div>

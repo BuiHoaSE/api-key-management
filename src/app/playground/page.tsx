@@ -153,11 +153,82 @@ export default function Playground() {
             {apiResponse && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-semibold mb-4">API Response</h2>
-                <div className="bg-gray-100 rounded p-4 max-h-96 overflow-auto">
-                  <pre className="text-sm font-mono whitespace-pre-wrap break-all">
-                    {JSON.stringify(apiResponse, null, 2)}
-                  </pre>
-                </div>
+                {apiResponse.error ? (
+                  <div className="bg-red-50 border border-red-200 rounded p-4">
+                    <p className="text-red-700">{apiResponse.error.message}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Summary Section */}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Summary</h3>
+                      <p className="text-gray-700">{apiResponse.summary}</p>
+                    </div>
+
+                    {/* Key Features Section */}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Key Features</h3>
+                      <ul className="list-disc list-inside space-y-1">
+                        {apiResponse.keyFeatures?.map((feature: string, index: number) => (
+                          <li key={index} className="text-gray-700">{feature}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Cool Facts Section */}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Cool Facts</h3>
+                      <ul className="list-disc list-inside space-y-1">
+                        {apiResponse.coolFacts?.map((fact: string, index: number) => (
+                          <li key={index} className="text-gray-700">{fact}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Repository Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="text-sm font-medium text-gray-500">Stars</h4>
+                        <p className="mt-1 text-lg font-semibold">{apiResponse.stars || 'N/A'}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="text-sm font-medium text-gray-500">Latest Version</h4>
+                        <p className="mt-1 text-lg font-semibold">{apiResponse.latestVersion || 'N/A'}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="text-sm font-medium text-gray-500">License</h4>
+                        <p className="mt-1 text-lg font-semibold">{apiResponse.license || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    {/* Website Link */}
+                    {apiResponse.website && (
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Website</h3>
+                        <a 
+                          href={apiResponse.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {apiResponse.website}
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Raw Response Toggle */}
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <details className="cursor-pointer">
+                        <summary className="text-sm text-gray-600 hover:text-gray-900">View Raw Response</summary>
+                        <div className="mt-2 bg-gray-100 rounded p-4 max-h-96 overflow-auto">
+                          <pre className="text-sm font-mono whitespace-pre-wrap break-all">
+                            {JSON.stringify(apiResponse, null, 2)}
+                          </pre>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
